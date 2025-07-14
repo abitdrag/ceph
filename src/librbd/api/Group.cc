@@ -129,19 +129,21 @@ int group_snap_rollback_by_record(librados::IoCtx& group_ioctx,
                                   ProgressContext& pctx) {
   CephContext *cct = (CephContext *)group_ioctx.cct();
   std::vector<C_SaferCond*> on_finishes;
-  int r, ret_code;
+  int r, ret_code, last_idx;
 
   std::vector<librbd::ImageCtx*> ictxs;
 
   ldout(cct, 20) << "Rolling back snapshots" << dendl;
   int snap_count = group_snap.snaps.size();
+  last_idx = snap_count+1;
 
   for (int i = 0; i < snap_count; ++i) {
     librados::IoCtx image_io_ctx;
     r = librbd::util::create_ioctx(group_ioctx, "image",
                                    group_snap.snaps[i].pool, {}, &image_io_ctx);
     if (r < 0) {
-      return r;
+      last_idx = i;
+      break;
     }
 
     librbd::ImageCtx* image_ctx = new ImageCtx("", group_snap.snaps[i].image_id,
@@ -156,7 +158,7 @@ int group_snap_rollback_by_record(librados::IoCtx& group_ioctx,
   }
 
   ret_code = 0;
-  for (int i = 0; i < snap_count; ++i) {
+  for (int i = 0; i < min(snap_count, last_idx); ++i) {
     r = on_finishes[i]->wait();
     delete on_finishes[i];
     if (r < 0) {
@@ -164,7 +166,8 @@ int group_snap_rollback_by_record(librados::IoCtx& group_ioctx,
       ret_code = r;
     }
   }
-  if (ret_code != 0) {
+  if (ret_code != 0 || last_idx != snap_count+1) {
+    ldout(cct, 20) << "Rolling back snapshots failed" << dendl;
     goto finish;
   }
 
