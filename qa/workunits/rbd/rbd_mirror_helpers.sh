@@ -2389,7 +2389,7 @@ mirror_group_snapshot()
     local cluster=$1
     local group_spec=$2
 
-    run_cmd "rbd --cluster=${cluster} mirror group snapshot ${group_spec}" || return 1
+    run_cmd "rbd --cluster=${cluster} --debug-rbd 20 --debug_rbd_mirror 20 --debug-ms 10 mirror group snapshot ${group_spec} --log-to-stderr true" || return 1
 
     if [ "$#" -gt 2 ]
     then

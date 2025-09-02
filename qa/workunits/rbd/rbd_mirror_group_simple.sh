@@ -2939,6 +2939,73 @@ test_force_promote_before_initial_sync()
   start_mirrors "${secondary_cluster}"
 }
 
+# test force promote scenarios
+declare -a test_multiple_mirror_group_snapshot_1=("${CLUSTER2}" "${CLUSTER1}" "${pool0}" 16)
+
+test_multiple_mirror_group_snapshot_scenarios=1
+
+test_multiple_mirror_group_snapshot()
+{
+  local primary_cluster=$1 ; shift
+  local secondary_cluster=$1 ; shift
+  local pool=$1 ; shift
+  local image_count=$(($1*"${image_multiplier}")) ; shift
+  if [ -n "$1" ]; then
+    local get_average='true'
+    local -n _average_snapshot_time=$1 ; shift
+  fi
+
+  local group0=test-group0
+  local image_prefix="test_image"
+
+  echo "starting daemon on primary"
+  start_mirrors "${primary_cluster}"
+
+  group_create "${primary_cluster}" "${pool}/${group0}"
+  images_create "${primary_cluster}" "${pool}/${image_prefix}" "${image_count}" 12M
+  group_images_add "${primary_cluster}" "${pool}/${group0}" "${pool}/${image_prefix}" "${image_count}"
+
+  mirror_group_enable "${primary_cluster}" "${pool}/${group0}"
+
+  wait_for_group_present "${secondary_cluster}" "${pool}" "${group0}" "${image_count}"
+  wait_for_group_replay_started "${secondary_cluster}" "${pool}"/"${group0}" "${image_count}"
+  wait_for_group_status_in_pool_dir "${secondary_cluster}" "${pool}"/"${group0}" 'up+replaying' "${image_count}"
+
+  wait_for_group_synced "${primary_cluster}" "${pool}"/"${group0}" "${secondary_cluster}" "${pool}"/"${group0}"
+
+  #echo "stopping daemon on secondary"
+  #stop_mirrors "${secondary_cluster}"
+
+  local start_time=$(date +%s)
+  mirror_group_snapshot "${primary_cluster}" "${pool}/${group0}"  
+
+  local count
+  get_group_snap_count "${secondary_cluster}" "${pool}"/"${group0}" '*' count
+  test "${count}" = 1 || { fail "snap count = ${count}"; return 1; }
+
+  get_group_snap_count "${primary_cluster}" "${pool}"/"${group0}" '*' count
+  test "${count}" = 2 || { fail "snap count = ${count}"; return 1; }
+
+  wait_for_group_present "${secondary_cluster}" "${pool}" "${group0}" "${image_count}"
+  
+  wait_for_group_synced "${primary_cluster}" "${pool}/${group0}" "${secondary_cluster}" "${pool}"/"${group0}"
+  max_image=$((image_count-1))
+  for i in $(seq 0 "${max_image}"); do
+      wait_for_status_in_pool_dir "${secondary_cluster}" "${pool}" "${image_prefix}$i" 'up+replaying'
+  done;
+
+  wait_for_group_present "${secondary_cluster}" "${pool}" "${group0}" "${image_count}"
+  wait_for_group_present "${primary_cluster}" "${pool}" "${group0}" "${image_count}"
+
+  # tidy up
+  mirror_group_disable "${primary_cluster}" "${pool}/${group0}"
+  group_remove "${primary_cluster}" "${pool}/${group0}"
+  wait_for_group_not_present "${primary_cluster}" "${pool}" "${group0}"
+  wait_for_group_not_present "${secondary_cluster}" "${pool}" "${group0}"
+  images_remove "${primary_cluster}" "${pool}/${image_prefix}" "${image_count}" 
+}
+
+
 # test force unlink time
 declare -a test_multiple_mirror_group_snapshot_unlink_time_1=("${CLUSTER2}" "${CLUSTER1}" "${pool0}")
 
@@ -2987,6 +3054,9 @@ test_multiple_mirror_group_snapshot_whilst_stopped()
 
   local group0=test-group0
   local image_prefix="test_image"
+
+  echo "starting daemon on primary"
+  start_mirrors "${primary_cluster}"
 
   group_create "${primary_cluster}" "${pool}/${group0}"
   images_create "${primary_cluster}" "${pool}/${image_prefix}" "${image_count}" 12M
@@ -3697,6 +3767,7 @@ run_all_tests()
   run_test_all_scenarios test_empty_group_omap_keys
   # TODO: add the capabilty to have clone images support in the mirror group
   run_test_all_scenarios test_group_with_clone_image
+  run_test_all_scenarios test_multiple_mirror_group_snapshot
   run_test_all_scenarios test_multiple_mirror_group_snapshot_unlink_time
   run_test_all_scenarios test_force_promote_delete_group
   run_test_all_scenarios test_create_group_stop_daemon_then_recreate
