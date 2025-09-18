@@ -24,6 +24,12 @@
 #include <iostream>
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/program_options.hpp>
+#include <iostream>
+#include <chrono>
+#include <ctime>
+#include <iomanip>
+
+
 
 namespace rbd {
 namespace action {
@@ -567,6 +573,15 @@ int execute_snapshot(const po::variables_map &vm,
   std::string namespace_name;
   std::string group_name;
 
+auto now = std::chrono::system_clock::now();
+std::time_t currentTime = std::chrono::system_clock::to_time_t(now);
+std::tm localTime = *std::localtime(&currentTime);
+auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()) % 1000;
+std::cout << std::put_time(&localTime, "%Y-%m-%d %H:%M:%S") << '.' << std::setfill('0') << std::setw(3) << ms.count() << "execute_snapshot startdebug_m\n";
+std::cout << "debug_m Inside execute_snapshot" << std::endl;
+std::cerr << "debug_m cerr" << std::endl;
+
+
   int r = utils::get_pool_generic_snapshot_names(
     vm, at::ARGUMENT_MODIFIER_NONE, &arg_index, at::POOL_NAME, &pool_name,
     at::NAMESPACE_NAME, &namespace_name, GROUP_NAME, "group", &group_name,
@@ -575,11 +590,25 @@ int execute_snapshot(const po::variables_map &vm,
     return r;
   }
 
+now = std::chrono::system_clock::now();
+currentTime = std::chrono::system_clock::to_time_t(now);
+localTime = *std::localtime(&currentTime);
+ms = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()) % 1000;
+std::cout << std::put_time(&localTime, "%Y-%m-%d %H:%M:%S") << '.' << std::setfill('0') << std::setw(3) << ms.count() << "debug_m execute_snapshot after get_pool_generic_snapshot_names\n";
+
+
   uint32_t flags;
   r = utils::get_snap_create_flags(vm, &flags);
   if (r < 0) {
     return r;
   }
+
+now = std::chrono::system_clock::now();
+currentTime = std::chrono::system_clock::to_time_t(now);
+localTime = *std::localtime(&currentTime);
+ms = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()) % 1000;
+std::cout << std::put_time(&localTime, "%Y-%m-%d %H:%M:%S") << '.' << std::setfill('0') << std::setw(3) << ms.count() << "debug_m execute_snapshot after get_snap_create_flags\n";
+
 
   librados::Rados rados;
   librados::IoCtx io_ctx;
@@ -589,10 +618,24 @@ int execute_snapshot(const po::variables_map &vm,
     return r;
   }
 
+now = std::chrono::system_clock::now();
+currentTime = std::chrono::system_clock::to_time_t(now);
+localTime = *std::localtime(&currentTime);
+ms = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()) % 1000;
+std::cout << std::put_time(&localTime, "%Y-%m-%d %H:%M:%S") << '.' << std::setfill('0') << std::setw(3) << ms.count() << "debug_m execute_snapshot after init\n";
+
+
   r = validate_mirroring_enabled(io_ctx, group_name);
   if (r < 0) {
     return r;
   }
+
+now = std::chrono::system_clock::now();
+currentTime = std::chrono::system_clock::to_time_t(now);
+localTime = *std::localtime(&currentTime);
+ms = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()) % 1000;
+std::cout << std::put_time(&localTime, "%Y-%m-%d %H:%M:%S") << '.' << std::setfill('0') << std::setw(3) << ms.count() << "debug_m execute_snapshot after validate_mirroring_enable\n";
+
 
   librbd::RBD rbd;
   std::string snap_id;
@@ -603,6 +646,13 @@ int execute_snapshot(const po::variables_map &vm,
               << std::endl;
     return r;
   }
+
+now = std::chrono::system_clock::now();
+currentTime = std::chrono::system_clock::to_time_t(now);
+localTime = *std::localtime(&currentTime);
+ms = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()) % 1000;
+std::cout << std::put_time(&localTime, "%Y-%m-%d %H:%M:%S") << '.' << std::setfill('0') << std::setw(3) << ms.count() << "debug_m execute_snapshot after mirror_group_create_snapshot\n";
+
 
   std::cout << "Snapshot ID: " << snap_id << std::endl;
   return 0;

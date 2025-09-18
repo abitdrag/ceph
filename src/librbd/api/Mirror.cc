@@ -43,6 +43,10 @@
 #include <boost/algorithm/string/replace.hpp>
 #include <boost/scope_exit.hpp>
 #include "json_spirit/json_spirit.h"
+#include <iostream>
+#include <chrono>
+#include <ctime>
+#include <iomanip>
 
 #include <algorithm>
 #include <shared_mutex> // for std::shared_lock
@@ -3562,9 +3566,19 @@ void Mirror<I>::group_snapshot_create(IoCtx& group_ioctx,
                                       uint32_t flags, std::string *snap_id,
                                       Context *on_finish) {
   CephContext *cct = (CephContext *)group_ioctx.cct();
-  ldout(cct, 20) << "group io_ctx=" << &group_ioctx
+  ldout(cct, 20) << "debug_m group_snapshot_create called"
+                 << "group io_ctx=" << &group_ioctx
 		 << ", group_name=" << group_name
 		 << ", flags=" << flags << dendl;
+
+auto now = std::chrono::system_clock::now();
+std::time_t currentTime = std::chrono::system_clock::to_time_t(now);  
+std::tm localTime = *std::localtime(&currentTime);
+auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()) % 1000;
+std::cout << std::put_time(&localTime, "%Y-%m-%d %H:%M:%S") << '.' << std::setfill('0') << std::setw(3) << ms.count() << "debug_m group_snapshot_create start debug_m\n";
+ldout(cct, 20) << "debug_m group_snapshot_create D start" << dendl;
+std::cerr << "debug_m group_snapshot_create D cerr start debug_m" << std::endl;
+
 
   uint64_t snap_create_flags = 0;
   int r = librbd::util::snap_create_flags_api_to_internal(cct, flags,
@@ -3573,14 +3587,45 @@ void Mirror<I>::group_snapshot_create(IoCtx& group_ioctx,
     on_finish->complete(r);
     return;
   }
+
+
+now = std::chrono::system_clock::now();
+currentTime = std::chrono::system_clock::to_time_t(now);
+localTime = *std::localtime(&currentTime);
+ms = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()) % 1000;
+std::cout << std::put_time(&localTime, "%Y-%m-%d %H:%M:%S") << '.' << std::setfill('0') << std::setw(3) << ms.count() << "debug_m group_snapshot_create after create_flag_api\n";
+
+
   auto ctx = new C_GroupSnapshotCreate<I>(group_ioctx, group_name,
                                        snap_create_flags,
                                        snap_id,
                                        on_finish);
 
+now = std::chrono::system_clock::now();
+currentTime = std::chrono::system_clock::to_time_t(now);
+localTime = *std::localtime(&currentTime);
+ms = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()) % 1000;
+std::cout << std::put_time(&localTime, "%Y-%m-%d %H:%M:%S") << '.' << std::setfill('0') << std::setw(3) << ms.count() << "debug_m group_snapshot_create after C_GroupSnapshotCreate\n";
+
+
   auto req = mirror::GroupGetInfoRequest<I>::create(
     group_ioctx, group_name, "", &ctx->mirror_group, &ctx->promotion_state, ctx);
+
+now = std::chrono::system_clock::now();
+currentTime = std::chrono::system_clock::to_time_t(now);
+localTime = *std::localtime(&currentTime);
+ms = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()) % 1000;
+std::cout << std::put_time(&localTime, "%Y-%m-%d %H:%M:%S") << '.' << std::setfill('0') << std::setw(3) << ms.count() << "debug_m group_snapshot_create after GroupGetInfoRequest::create\n";
+
   req->send();
+
+
+now = std::chrono::system_clock::now();
+currentTime = std::chrono::system_clock::to_time_t(now);
+localTime = *std::localtime(&currentTime);
+ms = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()) % 1000;
+std::cout << std::put_time(&localTime, "%Y-%m-%d %H:%M:%S") << '.' << std::setfill('0') << std::setw(3) << ms.count() << "debug_m group_snapshot_create after req->send()\n";
+
 }
 
 template <typename I>
