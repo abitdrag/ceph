@@ -778,7 +778,7 @@ void Mirror<I>::image_promote(I *ictx, bool force, Context *on_finish) {
       return;
     }
 
-    image_meta.resync_requested = true;
+    image_meta.resync_requested = false;
 
     C_SaferCond save_meta_ctx;
     image_meta.save(&save_meta_ctx);
