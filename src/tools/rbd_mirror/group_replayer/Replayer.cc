@@ -701,6 +701,7 @@ void Replayer<I>::check_local_group_snapshots(
       }
     } else if (last_local_snap_ns &&
      last_local_snap_ns->state == cls::rbd::MIRROR_SNAPSHOT_STATE_PRIMARY_DEMOTED) {
+      m_primary_demoted = true;
       bool split_brain = true;
       for (auto it = m_remote_group_snaps.begin();
            it != m_remote_group_snaps.end(); it++) {
@@ -791,6 +792,10 @@ void Replayer<I>::try_create_group_snapshot(
           continue;
         }
       } else {
+        if (m_primary_demoted) {
+          handle_replay_complete(locker, -EAGAIN, "local group is not primary");
+          return;
+        }
         dout(10) << "all remote snaps synced" << dendl;
         return;
       }

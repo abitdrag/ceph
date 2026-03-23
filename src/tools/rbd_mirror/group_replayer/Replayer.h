@@ -130,6 +130,7 @@ private:
 
   bool m_check_creating_snaps = true; // check and identify creating snaps just after restart
   bool m_resync_requested = false;
+  bool m_primary_demoted = false;
 
   bool is_replay_interrupted(std::unique_lock<ceph::mutex>* locker);
 
