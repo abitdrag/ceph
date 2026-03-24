@@ -855,6 +855,49 @@ wait_for_snapshot_sync_complete()
     return 1
 }
 
+test_snap_present_on_primary()
+{
+    local cluster=$1
+    local image_spec=$2
+    local snap_id=$3
+    local expected_snap_count=$4
+    local snap_count
+
+    snap_count=$(rbd --cluster ${cluster} snap list -a ${image_spec} --format xml --pretty-format | \
+            xmlstarlet sel -t -v "count(//snapshots/snapshot[id='${snap_id}'])")
+    test "${expected_snap_count}" = "${snap_count}"
+}
+
+wait_for_snap_present_on_primary()
+{
+    local cluster=$1
+    local image_spec=$2
+    local snap_id=$3
+    local s
+
+    for s in 0.1 1 2 4 8 8 8 8 8 8 8 8 16 16 32 32; do
+        sleep ${s}
+        test_snap_present_on_primary "${cluster}" "${image_spec}" "${snap_id}" 1 && return 0
+    done
+
+    return 1
+}
+
+wait_for_snap_not_present_on_primary()
+{
+    local cluster=$1
+    local image_spec=$2
+    local snap_id=$3
+    local s
+
+    for s in 0.1 1 2 4 8 8 8 8 8 8 8 8 16 16 32 32; do
+        sleep ${s}
+        test_snap_present_on_primary "${cluster}" "${image_spec}" "${snap_id}" 0 && return 0
+    done
+
+    return 1
+}
+
 wait_for_replay_complete()
 {
     local local_cluster=$1

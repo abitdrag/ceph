@@ -274,6 +274,34 @@ wait_for_replaying_status_in_pool_dir ${CLUSTER1} ${POOL} ${image}
 wait_for_status_in_pool_dir ${CLUSTER2} ${POOL} ${image} 'up+stopped'
 compare_images ${CLUSTER1} ${CLUSTER2} ${POOL} ${POOL} ${image}
 
+if [ "${RBD_MIRROR_MODE}" = "snapshot" ]; then
+  testlog "TEST: removal of primary mirror snapshots"
+  snapshot_id1=""
+  snapshot_id2=""
+  get_newest_complete_mirror_snapshot_id ${CLUSTER2} ${POOL} ${image} snapshot_id1
+  demote_image ${CLUSTER2} ${POOL} ${image}
+  wait_for_image_replay_stopped ${CLUSTER1} ${POOL} ${image}
+  wait_for_status_in_pool_dir ${CLUSTER1} ${POOL} ${image} 'up+unknown'
+  wait_for_status_in_pool_dir ${CLUSTER2} ${POOL} ${image} 'up+unknown'
+  get_newest_complete_mirror_snapshot_id ${CLUSTER2} ${POOL} ${image} snapshot_id2
+  promote_image ${CLUSTER1} ${POOL} ${image}
+  wait_for_image_replay_started ${CLUSTER2} ${POOL} ${image}
+  wait_for_replay_complete ${CLUSTER2} ${CLUSTER1} ${POOL} ${POOL} ${image}
+  wait_for_status_in_pool_dir ${CLUSTER1} ${POOL} ${image} 'up+stopped'
+  wait_for_status_in_pool_dir ${CLUSTER2} ${POOL} ${image} 'up+replaying'
+  wait_for_snap_not_present_on_primary ${CLUSTER2} ${POOL}/${image} ${snapshot_id1}
+  wait_for_snap_not_present_on_primary ${CLUSTER2} ${POOL}/${image} ${snapshot_id2}
+  demote_image ${CLUSTER1} ${POOL} ${image}
+  wait_for_image_replay_stopped ${CLUSTER2} ${POOL} ${image}
+  wait_for_status_in_pool_dir ${CLUSTER1} ${POOL} ${image} 'up+unknown'
+  wait_for_status_in_pool_dir ${CLUSTER2} ${POOL} ${image} 'up+unknown'
+  promote_image ${CLUSTER2} ${POOL} ${image}
+  wait_for_image_replay_started ${CLUSTER1} ${POOL} ${image}
+  wait_for_replay_complete ${CLUSTER1} ${CLUSTER2} ${POOL} ${POOL} ${image}
+  wait_for_status_in_pool_dir ${CLUSTER2} ${POOL} ${image} 'up+stopped'
+  wait_for_status_in_pool_dir ${CLUSTER1} ${POOL} ${image} 'up+replaying'
+fi
+
 testlog "TEST: failover / failback loop"
 for i in `seq 1 20`; do
   demote_image ${CLUSTER2} ${POOL} ${image}

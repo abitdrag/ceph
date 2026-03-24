@@ -99,6 +99,10 @@ public:
     return m_image_spec;
   }
 
+  void set_primary_peer_uuid(const std::string peer_uuid) override {
+    m_primary_peer_uuid = peer_uuid;
+  }
+
 private:
   /**
    * @verbatim
@@ -230,6 +234,7 @@ private:
   uint64_t m_local_object_count = 0;
 
   std::string m_remote_mirror_peer_uuid;
+  std::string m_primary_peer_uuid;
   uint64_t m_remote_snap_id_start = 0;
   uint64_t m_remote_snap_id_end = CEPH_NOSNAP;
   cls::rbd::MirrorSnapshotNamespace m_remote_mirror_snap_ns;
@@ -271,8 +276,8 @@ private:
   void scan_local_mirror_snapshots(std::unique_lock<ceph::mutex>* locker);
   void scan_remote_mirror_snapshots(std::unique_lock<ceph::mutex>* locker);
 
-  void prune_non_primary_snapshot(uint64_t snap_id);
-  void handle_prune_non_primary_snapshot(int r);
+  void prune_snapshot(uint64_t snap_id);
+  void handle_prune_snapshot(int r);
 
   void copy_snapshots();
   void handle_copy_snapshots(int r);

@@ -30,6 +30,8 @@ struct Replayer {
 
   virtual int get_error_code() const = 0;
   virtual std::string get_error_description() const = 0;
+
+  virtual void set_primary_peer_uuid(const std::string peer_uuid) {}
 };
 
 } // namespace image_replayer

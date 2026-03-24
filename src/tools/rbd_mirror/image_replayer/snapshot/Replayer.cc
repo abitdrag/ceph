@@ -539,6 +539,11 @@ void Replayer<I>::scan_local_mirror_snapshots(
       }
     } else if (mirror_ns->is_primary()) {
       if (mirror_ns->complete) {
+        if (mirror_ns->mirror_peer_uuids.empty() ||
+          (mirror_ns->mirror_peer_uuids.size() == 1 && mirror_ns->mirror_peer_uuids.count(m_primary_peer_uuid) == 1)) {
+          // old primary snapshots can be removed when remote becomes primary
+          prune_snap_ids.insert(local_snap_id);
+        }
         m_local_snap_id_start = local_snap_id;
         ceph_assert(m_local_snap_id_end == CEPH_NOSNAP);
       } else {
@@ -565,7 +570,7 @@ void Replayer<I>::scan_local_mirror_snapshots(
 
     auto prune_snap_id = *prune_snap_ids.begin();
     dout(5) << "pruning unused non-primary snapshot " << prune_snap_id << dendl;
-    prune_non_primary_snapshot(prune_snap_id);
+    prune_snapshot(prune_snap_id);
     return;
   }
 
@@ -798,7 +803,7 @@ void Replayer<I>::scan_remote_mirror_snapshots(
 }
 
 template <typename I>
-void Replayer<I>::prune_non_primary_snapshot(uint64_t snap_id) {
+void Replayer<I>::prune_snapshot(uint64_t snap_id) {
   dout(10) << "snap_id=" << snap_id << dendl;
 
   auto local_image_ctx = m_state_builder->local_image_ctx;
@@ -825,12 +830,12 @@ void Replayer<I>::prune_non_primary_snapshot(uint64_t snap_id) {
   }
 
   auto ctx = create_context_callback<
-    Replayer<I>, &Replayer<I>::handle_prune_non_primary_snapshot>(this);
+    Replayer<I>, &Replayer<I>::handle_prune_snapshot>(this);
   local_image_ctx->operations->snap_remove(snap_namespace, snap_name, ctx);
 }
 
 template <typename I>
-void Replayer<I>::handle_prune_non_primary_snapshot(int r) {
+void Replayer<I>::handle_prune_snapshot(int r) {
   dout(10) << "r=" << r << dendl;
 
   if (r < 0 && r != -ENOENT) {
