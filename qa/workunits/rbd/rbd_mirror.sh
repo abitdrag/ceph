@@ -212,6 +212,36 @@ write_image ${CLUSTER2} ${POOL} ${image} 100
 wait_for_replay_complete ${CLUSTER1} ${CLUSTER2} ${POOL} ${POOL} ${image}
 wait_for_status_in_pool_dir ${CLUSTER1} ${POOL} ${image} 'up+replaying'
 
+if [ "${RBD_MIRROR_MODE}" = "snapshot" ]; then
+  testlog "TEST: replay_state transition while syncing snapshot"
+  start_mirrors ${CLUSTER2}
+  syncing=0
+  for s in 128 256 512 1024 2048 4096 8192 10240; do
+    big_image=test_big_image
+    create_image ${CLUSTER2} ${POOL} ${big_image} ${s}
+    enable_mirror ${CLUSTER2} ${POOL} ${big_image} ${RBD_MIRROR_MODE}
+    wait_for_image_present ${CLUSTER1} ${POOL} ${big_image} 'present'
+    enable_mirror ${CLUSTER1} ${POOL} ${big_image} ${RBD_MIRROR_MODE}
+    wait_for_image_replay_started ${CLUSTER1} ${POOL} ${big_image}
+    wait_for_status_in_pool_dir ${CLUSTER1} ${POOL} ${big_image} 'up+replaying'
+    wait_for_status_in_pool_dir ${CLUSTER2} ${POOL} ${big_image} 'up+stopped'
+    write_image ${CLUSTER2} ${POOL} ${big_image} 100
+    mirror_image_snapshot ${CLUSTER2} ${POOL} ${big_image}
+    if wait_for_replay_state ${CLUSTER1} ${POOL} ${big_image} 'syncing'; then
+      syncing=1
+    fi
+    wait_for_snapshot_sync_complete ${CLUSTER1} ${CLUSTER2} ${POOL} ${POOL} ${big_image}
+    wait_for_replay_state ${CLUSTER1} ${POOL} ${big_image} 'idle'
+    remove_image_retry ${CLUSTER2} ${POOL} ${big_image}
+    wait_for_image_present ${CLUSTER1} ${POOL} ${big_image} 'deleted'
+    if [ "${syncing}" -eq 1 ]; then
+      break
+    fi
+  done
+  stop_mirrors ${CLUSTER2}
+  test "${syncing}" -eq 1
+fi
+
 testlog "TEST: failover and failback"
 start_mirrors ${CLUSTER2}
 
