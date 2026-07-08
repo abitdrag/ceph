@@ -212,6 +212,34 @@ write_image ${CLUSTER2} ${POOL} ${image} 100
 wait_for_replay_complete ${CLUSTER1} ${CLUSTER2} ${POOL} ${POOL} ${image}
 wait_for_status_in_pool_dir ${CLUSTER1} ${POOL} ${image} 'up+replaying'
 
+if [ "${RBD_MIRROR_MODE}" = "snapshot" ]; then
+  testlog "TEST: replay_state transition while syncing snapshot"
+  start_mirrors ${CLUSTER2}
+  big_image=test_big_image
+  create_image_and_enable_mirror ${CLUSTER2} ${POOL} ${big_image} ${RBD_MIRROR_MODE} 1024
+  wait_for_image_present ${CLUSTER1} ${POOL} ${big_image} 'present'
+  wait_for_image_replay_started ${CLUSTER1} ${POOL} ${big_image}
+  wait_for_status_in_pool_dir ${CLUSTER1} ${POOL} ${big_image} 'up+replaying' '"replay_state":"idle"'
+  wait_for_status_in_pool_dir ${CLUSTER2} ${POOL} ${big_image} 'up+stopped'
+  write_image ${CLUSTER2} ${POOL} ${big_image} 256 4194304
+  mirror_image_snapshot ${CLUSTER2} ${POOL} ${big_image}
+
+  current_time=$(date +%s)
+  wait_for_replay_state_transition ${CLUSTER1} ${POOL} ${big_image} 'syncing' last_update_time
+  test $((last_update_time - current_time)) -lt 15
+  testlog "Took $((last_update_time - current_time)) seconds to transition to syncing state"
+
+  current_time=$(date +%s)
+  wait_for_replay_state_transition ${CLUSTER1} ${POOL} ${big_image} 'idle' last_update_time
+  test $((last_update_time - current_time)) -lt 15
+  testlog "Took $((last_update_time - current_time)) seconds to transition to idle state"
+
+  wait_for_snapshot_sync_complete ${CLUSTER1} ${CLUSTER2} ${POOL} ${POOL} ${big_image}
+  remove_image_retry ${CLUSTER2} ${POOL} ${big_image}
+  wait_for_image_present ${CLUSTER1} ${POOL} ${big_image} 'deleted'
+  stop_mirrors ${CLUSTER2}
+fi
+
 testlog "TEST: failover and failback"
 start_mirrors ${CLUSTER2}
 

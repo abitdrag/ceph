@@ -1014,6 +1014,35 @@ create_image()
         --image-feature "${RBD_IMAGE_FEATURES}" $@ ${pool}/${image}
 }
 
+wait_for_replay_state_transition()
+{
+    local cluster=$1
+    local pool=$2
+    local image=$3
+    local expected_replay_state=$4
+    local last_update_time=$5
+    local max_iterations=${6:-30}  # default 30 iterations if not provided
+    local status
+    local replay_state
+    local last_update
+    local i
+
+    for i in $(seq 1 $max_iterations); do
+        status=$(CEPH_ARGS='' rbd --cluster ${cluster} mirror image status \
+                 ${pool}/${image} 2>/dev/null)
+
+        replay_state=$(sed -nEe 's/^  description:.*"replay_state":"([^"]*)".*$/\1/p' <<< "$status")
+
+        if [ "$replay_state" = "$expected_replay_state" ]; then
+            last_update=$(sed -nEe 's/^  last_update: *(.*) *$/\1/p' <<< "$status")
+            eval "$last_update_time=\$(date -d \"\$last_update\" +%s)"
+            return 0
+        fi
+        sleep 1
+    done
+    return 1
+}
+
 is_pool_mirror_mode_image()
 {
     local pool=$1
